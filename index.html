@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Game Maker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar for a sleeker look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #111827; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #374151; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4B5563; 
+        }
+        .loader-ring {
+            border-top-color: #6366f1;
+            animation: spinner 1.5s linear infinite;
+        }
+        .loader-ring-reverse {
+            border-right-color: #a855f7;
+            animation: spinner-reverse 2s linear infinite;
+        }
+        .loader-ring-slow {
+            border-bottom-color: #06b6d4;
+            animation: spinner 3s linear infinite;
+        }
+        @keyframes spinner {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @keyframes spinner-reverse {
+            0% { transform: rotate(360deg); }
+            100% { transform: rotate(0deg); }
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-950 text-gray-100 font-sans flex flex-col md:flex-row h-screen overflow-hidden">
+
+    <!-- Sidebar / Controls -->
+    <div class="w-full md:w-[400px] flex-shrink-0 bg-gray-900 border-r border-gray-800 p-6 flex flex-col h-full overflow-y-auto shadow-xl z-10">
+        <div class="flex items-center gap-3 mb-8">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+            <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">
+                AI Game Maker
+            </h1>
+        </div>
+
+        <div class="mb-6">
+            <label class="block text-sm font-medium text-gray-400 mb-2">
+                Describe your game
+            </label>
+            <textarea id="promptInput" placeholder="e.g., Make a space shooter where you control a blue ship and shoot red asteroids..." class="w-full h-32 bg-gray-950 border border-gray-800 rounded-xl p-4 text-gray-200 placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all resize-none shadow-inner"></textarea>
+        </div>
+
+        <div class="mb-8">
+            <p class="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wider">Quick Suggestions</p>
+            <div id="suggestionsContainer" class="flex flex-wrap gap-2">
+                <!-- Suggestions will be injected here via JS -->
+            </div>
+        </div>
+
+        <button id="generateBtn" class="w-full py-3.5 px-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all transform active:scale-[0.98] bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-lg shadow-indigo-600/20">
+            <svg id="generateIconDefault" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd" />
+            </svg>
+            <svg id="generateIconLoading" class="animate-spin -ml-1 mr-3 h-5 w-5 text-indigo-200 hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span id="generateBtnText">Generate Game</span>
+        </button>
+
+        <div id="errorMsg" class="mt-4 p-4 bg-red-900/30 border border-red-800/50 rounded-xl items-start gap-3 hidden">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+            </svg>
+            <p id="errorText" class="text-sm text-red-200"></p>
+        </div>
+    </div>
+
+    <!-- Main Preview Area -->
+    <div class="flex-1 bg-black relative flex flex-col items-center justify-center p-4 md:p-8">
+        
+        <!-- Loading Overlay -->
+        <div id="loadingOverlay" class="absolute inset-0 bg-gray-950/80 backdrop-blur-sm flex flex-col items-center justify-center z-20 transition-all hidden">
+            <div class="relative w-24 h-24 mb-6">
+                <div class="absolute inset-0 border-t-4 border-transparent loader-ring rounded-full"></div>
+                <div class="absolute inset-2 border-r-4 border-transparent loader-ring-reverse rounded-full"></div>
+                <div class="absolute inset-4 border-b-4 border-transparent loader-ring-slow rounded-full"></div>
+            </div>
+            <h3 class="text-xl font-bold text-white mb-2 tracking-wide animate-pulse">Building your game...</h3>
+            <p class="text-gray-400 text-sm">Writing code, logic, and styles...</p>
+        </div>
+
+        <!-- Placeholder (No Game) -->
+        <div id="placeholderArea" class="text-center opacity-50 flex flex-col items-center max-w-md">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24 mb-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
+            </svg>
+            <h2 class="text-2xl font-bold text-gray-500 mb-2">No Game Generated Yet</h2>
+            <p class="text-gray-600">Enter a description in the sidebar and click generate to create a playable HTML5 game instantly.</p>
+        </div>
+
+        <!-- Game Iframe Container -->
+        <div id="iframeContainer" class="w-full h-full max-w-5xl bg-white rounded-2xl overflow-hidden shadow-2xl ring-1 ring-gray-800 flex-col hidden">
+            <div class="h-8 bg-gray-900 flex items-center px-4 border-b border-gray-800 flex-shrink-0">
+                <div class="flex gap-1.5">
+                    <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                    <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                    <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                </div>
+                <div class="flex-1 text-center text-xs font-mono text-gray-500">game-preview.html</div>
+            </div>
+            <iframe id="gamePreview" title="Game Preview" class="w-full flex-1 border-none bg-white" sandbox="allow-scripts allow-same-origin"></iframe>
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const promptInput = document.getElementById('promptInput');
+            const suggestionsContainer = document.getElementById('suggestionsContainer');
+            const generateBtn = document.getElementById('generateBtn');
+            const generateIconDefault = document.getElementById('generateIconDefault');
+            const generateIconLoading = document.getElementById('generateIconLoading');
+            const generateBtnText = document.getElementById('generateBtnText');
+            const errorMsg = document.getElementById('errorMsg');
+            const errorText = document.getElementById('errorText');
+            
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            const placeholderArea = document.getElementById('placeholderArea');
+            const iframeContainer = document.getElementById('iframeContainer');
+            const gamePreview = document.getElementById('gamePreview');
+
+            let isGenerating = false;
+            let hasGame = false;
+
+            const suggestions = [
+                "Classic Snake game with a neon theme",
+                "Ping Pong game against an AI opponent",
+                "Space shooter where you dodge asteroids",
+                "Flappy bird clone with a spaceship",
+                "Simple Tetris-like puzzle game"
+            ];
+
+            // Render suggestions
+            suggestions.forEach(sug => {
+                const btn = document.createElement('button');
+                btn.className = "text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 py-1.5 px-3 rounded-full transition-colors border border-gray-700/50 hover:border-gray-600";
+                btn.textContent = sug;
+                btn.addEventListener('click', () => {
+                    if (!isGenerating) {
+                        promptInput.value = sug;
+                    }
+                });
+                suggestionsContainer.appendChild(btn);
+            });
+
+            const setGeneratingState = (generating) => {
+                isGenerating = generating;
+                promptInput.disabled = generating;
+                
+                if (generating) {
+                    generateBtn.classList.remove('bg-gradient-to-r', 'from-indigo-600', 'to-purple-600', 'hover:from-indigo-500', 'hover:to-purple-500', 'shadow-indigo-600/20');
+                    generateBtn.classList.add('bg-gray-800', 'cursor-not-allowed', 'text-gray-400');
+                    generateIconDefault.classList.add('hidden');
+                    generateIconLoading.classList.remove('hidden');
+                    generateBtnText.textContent = 'Generating Game...';
+                    
+                    loadingOverlay.classList.remove('hidden');
+                    placeholderArea.classList.add('hidden');
+                    iframeContainer.classList.add('hidden');
+                    errorMsg.classList.add('hidden');
+                    errorMsg.classList.remove('flex');
+                } else {
+                    generateBtn.classList.add('bg-gradient-to-r', 'from-indigo-600', 'to-purple-600', 'hover:from-indigo-500', 'hover:to-purple-500', 'shadow-indigo-600/20');
+                    generateBtn.classList.remove('bg-gray-800', 'cursor-not-allowed', 'text-gray-400');
+                    generateIconDefault.classList.remove('hidden');
+                    generateIconLoading.classList.add('hidden');
+                    generateBtnText.textContent = 'Generate Game';
+                    
+                    loadingOverlay.classList.add('hidden');
+                }
+            };
+
+            const showError = (message) => {
+                errorText.textContent = message;
+                errorMsg.classList.remove('hidden');
+                errorMsg.classList.add('flex');
+                if (!hasGame) {
+                    placeholderArea.classList.remove('hidden');
+                } else {
+                    iframeContainer.classList.remove('hidden');
+                    iframeContainer.classList.add('flex');
+                }
+            };
+
+            const generateGame = async () => {
+                const prompt = promptInput.value.trim();
+                if (!prompt) {
+                    showError("Please enter a game description.");
+                    return;
+                }
+
+                setGeneratingState(true);
+
+                try {
+                    const apiKey = ""; // API Key injected automatically by Canvas runtime
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+                    const systemInstruction = `You are an expert web game developer. 
+                    Your task is to generate a complete, playable, single-file HTML5 game based on the user's prompt. 
+                    CRITICAL RULES:
+                    1. Output ONLY valid, raw HTML code starting with <!DOCTYPE html>.
+                    2. Do NOT use markdown code blocks (e.g., do not wrap the code in \`\`\`html ... \`\`\`).
+                    3. Include all necessary HTML, CSS (in a <style> tag), and JavaScript (in a <script> tag) within the single file.
+                    4. Ensure the game is playable, has basic instructions on screen, and scales well to fit a standard browser window.
+                    5. Do not load external assets (images/sounds) unless via reliable CDNs or generate elements using Canvas drawing commands.`;
+
+                    const payload = {
+                        contents: [{ parts: [{ text: prompt }] }],
+                        systemInstruction: { parts: [{ text: systemInstruction }] },
+                    };
+
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`API error: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    const candidate = result.candidates?.[0];
+
+                    if (candidate && candidate.content?.parts?.[0]?.text) {
+                        let text = candidate.content.parts[0].text;
+                        
+                        // Clean up markdown just in case the model hallucinates it despite instructions
+                        text = text.replace(/^```html\s*/i, '');
+                        text = text.replace(/^```\s*/, '');
+                        text = text.replace(/```\s*$/, '');
+
+                        // Inject game code into iframe
+                        gamePreview.srcdoc = text;
+                        hasGame = true;
+                        
+                        iframeContainer.classList.remove('hidden');
+                        iframeContainer.classList.add('flex');
+                    } else {
+                        throw new Error("Failed to generate game content.");
+                    }
+                } catch (err) {
+                    console.error("Generation error:", err);
+                    showError(err.message || "An error occurred while generating the game.");
+                } finally {
+                    setGeneratingState(false);
+                }
+            };
+
+            generateBtn.addEventListener('click', generateGame);
+        });
+    </script>
+</body>
+</html>
